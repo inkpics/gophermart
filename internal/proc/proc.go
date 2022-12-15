@@ -39,7 +39,7 @@ func New(runAddr, databaseAddr, accrualAddr string) (*Proc, error) {
 	}, err
 }
 
-type UserJson struct {
+type UserJSON struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`
 }
@@ -60,7 +60,7 @@ func (p *Proc) Register(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "internal server error")
 	}
 
-	var u UserJson
+	var u UserJSON
 	err = json.Unmarshal(body, &u)
 	if err != nil {
 		return c.String(http.StatusBadRequest, "bad request")
@@ -89,7 +89,7 @@ func (p *Proc) Login(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "internal server error")
 	}
 
-	var u UserJson
+	var u UserJSON
 	err = json.Unmarshal(body, &u)
 	if err != nil {
 		return c.String(http.StatusBadRequest, "bad request")
@@ -175,7 +175,7 @@ func (p *Proc) SetOrders(c echo.Context) error {
 	return c.String(http.StatusAccepted, "order registered successfully")
 }
 
-type OrdersJsonItem struct {
+type OrdersJSONItem struct {
 	Number     string  `json:"number"`
 	Status     string  `json:"status"`
 	Accrual    float64 `json:"accrual"`
@@ -206,9 +206,9 @@ func (p *Proc) Orders(c echo.Context) error {
 		return c.String(http.StatusNoContent, "user has no orders")
 	}
 
-	var arr []OrdersJsonItem
+	var arr []OrdersJSONItem
 	for _, order := range orders {
-		item := OrdersJsonItem{}
+		item := OrdersJSONItem{}
 		item.Number = order.Number
 		item.Status = order.Status
 		item.Accrual = order.Accrual
@@ -219,7 +219,7 @@ func (p *Proc) Orders(c echo.Context) error {
 	return c.JSON(http.StatusOK, arr)
 }
 
-type BalanceJson struct {
+type BalanceJSON struct {
 	Current   float64 `json:"current"`
 	Withdrawn float64 `json:"withdrawn"`
 }
@@ -239,14 +239,14 @@ func (p *Proc) Balance(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "internal server error")
 	}
 
-	var result BalanceJson
+	var result BalanceJSON
 	result.Current = balance.Current
 	result.Withdrawn = balance.Withdrawn
 
 	return c.JSON(http.StatusOK, result)
 }
 
-type WithdrawJson struct {
+type WithdrawJSON struct {
 	Order string  `json:"order"`
 	Sum   float64 `json:"sum"`
 }
@@ -268,7 +268,7 @@ func (p *Proc) Withdraw(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "internal server error")
 	}
 
-	var w WithdrawJson
+	var w WithdrawJSON
 	err = json.Unmarshal(body, &w)
 	if err != nil {
 		return c.String(http.StatusBadRequest, "bad request")
@@ -294,7 +294,7 @@ func (p *Proc) Withdraw(c echo.Context) error {
 	return c.String(http.StatusOK, "successfull withdraw")
 }
 
-type WithdrawalsJsonItem struct {
+type WithdrawalsJSONItem struct {
 	OrderNumber string  `json:"order"`
 	Sum         float64 `json:"sum"`
 	ProcessedAt string  `json:"processed_at"`
@@ -319,9 +319,9 @@ func (p *Proc) Withdrawals(c echo.Context) error {
 		return c.String(http.StatusNoContent, "user has no withdrawals")
 	}
 
-	var arr []WithdrawalsJsonItem
+	var arr []WithdrawalsJSONItem
 	for _, withdraw := range withdrawals {
-		item := WithdrawalsJsonItem{}
+		item := WithdrawalsJSONItem{}
 		item.OrderNumber = withdraw.OrderNumber
 		item.Sum = withdraw.Sum
 		item.ProcessedAt = getTimestamp(withdraw.ProcessedAt)
