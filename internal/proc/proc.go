@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/inkpics/gophermart/internal/storage"
 	"github.com/labstack/echo/v4"
@@ -35,7 +36,7 @@ func New(runAddr, databaseAddr, accrualAddr string) (*Proc, error) {
 		DatabaseAddr: databaseAddr,
 		AccrualAddr:  accrualAddr,
 		Storage:      s,
-		enc:          "b8ffa0f4-3f11-44b1-b0bf-9109f47e468b",
+		enc:          "e0e10cbb-7713-43b4-9dc7-e198779e130c",
 	}, err
 }
 
@@ -373,4 +374,61 @@ func getLogin(c echo.Context, enc string) (string, error) {
 	}
 
 	return login, fmt.Errorf("authentification check failed")
+}
+
+func (p *Proc) AccrualLoop() {
+	for {
+		p.UpdateAccrual()
+		time.Sleep(3 * time.Second)
+	}
+}
+
+func (p *Proc) UpdateAccrual() error {
+	orders, err := p.Storage.OrdersProcessing()
+	if err != nil {
+		return fmt.Errorf("update accrual error: %w", err)
+	}
+
+	for _, order := range orders {
+		status, accrual, err := p.Accrual(order.Number)
+		if status == "INVALID" {
+			err = p.Storage.SetOrderInvalid(order.Number)
+			if err != nil {
+				return fmt.Errorf("set order invalid error: %w", err)
+			}
+		} else if status == "PROCESSED" {
+			err = p.Storage.SetOrderProcessed(order.Number, accrual)
+			if err != nil {
+				return fmt.Errorf("set order processed error: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+type AccrualJSON struct {
+	OrderNumber string  `json:"order"`
+	Status      string  `json:"status"`
+	Accrual     float64 `json:"accrual"`
+}
+
+func (p *Proc) Accrual(orderNumber string) (string, float64, error) {
+	resp, err := http.Get(p.AccrualAddr + "/api/orders/" + orderNumber)
+	if err != nil {
+		return "", 0, fmt.Errorf("accrual error: %w", err)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", 0, fmt.Errorf("accrual error: %w", err)
+	}
+
+	var a AccrualJSON
+	err = json.Unmarshal(body, &a)
+	if err != nil {
+		return "", 0, fmt.Errorf("accrual error: %w", err)
+	}
+
+	return a.Status, a.Accrual, nil
 }

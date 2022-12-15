@@ -263,12 +263,10 @@ func (s *Storage) Balance(login string) (Balance, error) {
 	}
 	defer rows.Close()
 
-	for rows.Next() {
-		err := rows.StructScan(&balance)
-		if err != nil {
-			return balance, fmt.Errorf("rows struct scan: %w", err)
-		}
-		break
+	rows.Next()
+	err = rows.StructScan(&balance)
+	if err != nil {
+		return balance, fmt.Errorf("rows struct scan: %w", err)
 	}
 
 	err = rows.Err()
@@ -348,4 +346,71 @@ func (s *Storage) Withdrawals(login string) ([]Withdraw, error) {
 	}
 
 	return result, nil
+}
+
+func (s *Storage) OrdersProcessing() ([]Order, error) {
+	var result []Order
+
+	db, err := sqlx.Connect("postgres", s.DatabaseAddr)
+	if err != nil {
+		return result, fmt.Errorf("sql connect: %w", err)
+	}
+	defer db.Close()
+
+	_, err = db.Exec("UPDATE gom_orders SET status = 'PROCESSING' WHERE status = 'NEW'")
+	if err != nil {
+		return result, fmt.Errorf("db update error: %w", err)
+	}
+
+	order := Order{}
+	rows, err := db.Queryx("SELECT * FROM gom_orders WHERE status = 'PROCESSING'")
+	if err != nil {
+		return result, fmt.Errorf("read rows: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err := rows.StructScan(&order)
+		if err != nil {
+			return result, fmt.Errorf("rows struct scan: %w", err)
+		}
+		result = append(result, order)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return result, fmt.Errorf("rows error: %w", err)
+	}
+
+	return result, nil
+}
+
+func (s *Storage) SetOrderInvalid(orderNumber string) error {
+	db, err := sqlx.Connect("postgres", s.DatabaseAddr)
+	if err != nil {
+		return fmt.Errorf("sql connect: %w", err)
+	}
+	defer db.Close()
+
+	_, err = db.Exec("UPDATE gom_orders SET status = INVALID WHERE number = $1", orderNumber)
+	if err != nil {
+		return fmt.Errorf("db update error: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Storage) SetOrderProcessed(orderNumber string, accrual float64) error {
+	db, err := sqlx.Connect("postgres", s.DatabaseAddr)
+	if err != nil {
+		return fmt.Errorf("sql connect: %w", err)
+	}
+	defer db.Close()
+
+	_, err = db.Exec("UPDATE gom_orders SET status = PROCESSED, accrual = $1 WHERE number = $2", orderNumber, accrual)
+	if err != nil {
+		return fmt.Errorf("db update error: %w", err)
+	}
+
+	return nil
 }

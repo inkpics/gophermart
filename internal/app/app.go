@@ -15,6 +15,8 @@ func Start(runAddr, databaseAddr, accrualAddr string) error {
 		return fmt.Errorf("handler: %w", err)
 	}
 
+	go p.AccrualLoop()
+
 	e := echo.New()
 	e.Use(middleware.Gzip())
 	e.Use(middleware.Decompress())
