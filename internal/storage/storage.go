@@ -401,7 +401,7 @@ func (s *Storage) SetOrderInvalid(orderNumber string) error {
 	}
 	defer db.Close()
 
-	_, err = db.Exec("UPDATE gom_orders SET status = INVALID WHERE number = $1", orderNumber)
+	_, err = db.Exec("UPDATE gom_orders SET status = 'INVALID' WHERE number = $1", orderNumber)
 	if err != nil {
 		return fmt.Errorf("db update error: %w", err)
 	}
@@ -416,7 +416,7 @@ func (s *Storage) SetOrderProcessed(orderNumber string, accrual float64) error {
 	}
 	defer db.Close()
 
-	_, err = db.Exec("UPDATE gom_orders SET status = PROCESSED, accrual = $1 WHERE number = $2", orderNumber, accrual)
+	_, err = db.Exec("UPDATE gom_orders SET status = 'PROCESSED', accrual = $1 WHERE number = $2", orderNumber, accrual)
 	if err != nil {
 		return fmt.Errorf("db update error: %w", err)
 	}
