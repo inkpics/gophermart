@@ -128,6 +128,15 @@ func (s *Storage) UserRegister(login, password string) error {
 		}
 	}
 
+	_, err = db.Exec("INSERT INTO gom_balances VALUES ($1, $2, 0, 0)", uuidV4(), login)
+	if err != nil {
+		if err, ok := err.(*pq.Error); ok {
+			if err.Code == "23505" {
+				return s.ErrDuplicateKey
+			}
+		}
+	}
+
 	if err != nil {
 		return fmt.Errorf("db error: %w", err)
 	}
@@ -248,7 +257,7 @@ func (s *Storage) Orders(login string) ([]Order, error) {
 	return result, nil
 }
 
-func (s *Storage) Balance(login string) (Balance, error) {
+func (s *Storage) UserBalance(login string) (Balance, error) {
 	balance := Balance{}
 
 	db, err := sqlx.Connect("postgres", s.DatabaseAddr)
@@ -257,7 +266,7 @@ func (s *Storage) Balance(login string) (Balance, error) {
 	}
 	defer db.Close()
 
-	rows, err := db.Queryx("SELECT * FROM gom_balances")
+	rows, err := db.Queryx("SELECT * FROM gom_balances WHERE login = $1", login)
 	if err != nil {
 		return balance, fmt.Errorf("read rows: %w", err)
 	}

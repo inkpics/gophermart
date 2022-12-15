@@ -235,7 +235,7 @@ func (p *Proc) Balance(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "user authentication failed")
 	}
 
-	balance, err := p.Storage.Balance(login)
+	balance, err := p.Storage.UserBalance(login)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "internal server error")
 	}
@@ -391,6 +391,9 @@ func (p *Proc) UpdateAccrual() error {
 
 	for _, order := range orders {
 		status, accrual, err := p.Accrual(order.Number)
+		if err != nil {
+			return fmt.Errorf("update accrual order error: %w", err)
+		}
 		if status == "INVALID" {
 			err = p.Storage.SetOrderInvalid(order.Number)
 			if err != nil {
@@ -418,6 +421,7 @@ func (p *Proc) Accrual(orderNumber string) (string, float64, error) {
 	if err != nil {
 		return "", 0, fmt.Errorf("accrual error: %w", err)
 	}
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
