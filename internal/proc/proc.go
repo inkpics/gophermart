@@ -148,12 +148,13 @@ func (p *Proc) SetOrders(c echo.Context) error {
 	}
 
 	order := string(body)
+	fmt.Println("new order text:", login, order)
 	orderInt, err := strconv.Atoi(order)
 	if err != nil {
 		return c.String(http.StatusBadRequest, "bad request")
 	}
 
-	fmt.Println("new order:", login, order)
+	fmt.Println("new order:", login, order, validateLuhn(orderInt))
 
 	if !validateLuhn(orderInt) {
 		return c.String(http.StatusUnprocessableEntity, "incorrect order number")
@@ -161,11 +162,14 @@ func (p *Proc) SetOrders(c echo.Context) error {
 
 	registered, err := p.Storage.OrderRegistered(login, order)
 	if err != nil {
+		fmt.Println("new order OrderRegistered failed:", login, order)
 		return c.String(http.StatusInternalServerError, "internal server error")
 	}
 	if registered == -1 {
+		fmt.Println("new order already registered by another user:", login, order)
 		return c.String(http.StatusConflict, "order registered by another user")
 	} else if registered == 1 {
+		fmt.Println("new order already registered:", login, order)
 		return c.String(http.StatusOK, "order already registered")
 	}
 
@@ -173,7 +177,7 @@ func (p *Proc) SetOrders(c echo.Context) error {
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "internal server error")
 	}
-
+	fmt.Println("new order registered:", login, order)
 	return c.String(http.StatusAccepted, "order registered successfully")
 }
 
