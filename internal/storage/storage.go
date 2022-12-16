@@ -235,7 +235,7 @@ func (s *Storage) Orders(login string) ([]Order, error) {
 	defer db.Close()
 
 	order := Order{}
-	rows, err := db.Queryx("SELECT * FROM gom_orders")
+	rows, err := db.Queryx("SELECT * FROM gom_orders WHERE login =$1", login)
 	if err != nil {
 		return result, fmt.Errorf("read rows: %w", err)
 	}
