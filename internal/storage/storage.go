@@ -416,7 +416,7 @@ func (s *Storage) SetOrderProcessed(orderNumber string, accrual float64) error {
 	}
 	defer db.Close()
 
-	_, err = db.Exec("UPDATE gom_orders SET status = 'PROCESSED', accrual = $1 WHERE number = $2", orderNumber, accrual)
+	_, err = db.Exec("UPDATE gom_orders SET status = 'PROCESSED', accrual = $1 WHERE number = $2", accrual, orderNumber)
 	if err != nil {
 		return fmt.Errorf("db update error: %w", err)
 	}
