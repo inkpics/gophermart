@@ -409,6 +409,28 @@ func (s *Storage) SetOrderInvalid(orderNumber string) error {
 	return nil
 }
 
+func (s *Storage) UserFromOrderNumber(orderNumber string) (string, error) {
+	db, err := sqlx.Connect("postgres", s.DatabaseAddr)
+	if err != nil {
+		return "", fmt.Errorf("sql connect: %w", err)
+	}
+	defer db.Close()
+
+	var user string
+	rows, err := db.Queryx("SELECT login FROM gom_orders WHERE number = $1", orderNumber)
+	if err != nil {
+		return "", fmt.Errorf("read rows: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		if err := rows.Scan(&user); err != nil {
+			return "", fmt.Errorf("read rows: %w", err)
+		}
+		return user, nil
+	}
+	return "", fmt.Errorf("rows error: %w", err)
+}
+
 func (s *Storage) SetOrderProcessed(orderNumber string, accrual float64) error {
 	db, err := sqlx.Connect("postgres", s.DatabaseAddr)
 	if err != nil {
@@ -419,6 +441,32 @@ func (s *Storage) SetOrderProcessed(orderNumber string, accrual float64) error {
 	_, err = db.Exec("UPDATE gom_orders SET status = 'PROCESSED', accrual = $1 WHERE number = $2", accrual, orderNumber)
 	if err != nil {
 		return fmt.Errorf("db update error: %w", err)
+	}
+
+	login, err := s.UserFromOrderNumber(orderNumber)
+	if err != nil {
+		return fmt.Errorf("balance update error: %w", err)
+	}
+
+	balance := Balance{}
+	rows, err := db.Queryx("SELECT * FROM gom_balances WHERE login = $1", login)
+	if err != nil {
+		return fmt.Errorf("read rows: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		if err := rows.StructScan(&balance); err != nil {
+			return fmt.Errorf("read rows: %w", err)
+		}
+	}
+	err = rows.Err()
+	if err != nil {
+		return fmt.Errorf("rows error: %w", err)
+	}
+
+	_, err = db.Exec("UPDATE gom_balances SET current = $1 WHERE login = $3", balance.Current+sum, login)
+	if err != nil {
+		return fmt.Errorf("db error: %w", err)
 	}
 
 	return nil
