@@ -428,7 +428,11 @@ func (s *Storage) UserFromOrderNumber(orderNumber string) (string, error) {
 		}
 		return user, nil
 	}
-	return "", fmt.Errorf("rows error: %w", err)
+	err = rows.Err()
+	if err != nil {
+		return "", fmt.Errorf("rows error: %w", err)
+	}
+	return "", fmt.Errorf("unexpected error: %w", err)
 }
 
 func (s *Storage) SetOrderProcessed(orderNumber string, accrual float64) error {
