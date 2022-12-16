@@ -11,7 +11,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/inkpics/gophermart/internal/storage"
@@ -183,11 +182,6 @@ type OrdersJSONItem struct {
 	UploadedAt string  `json:"uploaded_at"`
 }
 
-func getTimestamp(s string) string {
-	as := strings.Split(strings.Replace(s, ".", "+", 1), "+")
-	return as[0] + "+" + as[2]
-}
-
 func (p *Proc) Orders(c echo.Context) error {
 	// StatusOK 200 — успешная обработка запроса
 	// StatusNoContent 204 — нет данных для ответа
@@ -213,7 +207,7 @@ func (p *Proc) Orders(c echo.Context) error {
 		item.Number = order.Number
 		item.Status = order.Status
 		item.Accrual = order.Accrual
-		item.UploadedAt = getTimestamp(order.UploadedAt)
+		item.UploadedAt = order.UploadedAt
 		arr = append(arr, item)
 	}
 
@@ -325,7 +319,7 @@ func (p *Proc) Withdrawals(c echo.Context) error {
 		item := WithdrawalsJSONItem{}
 		item.OrderNumber = withdraw.OrderNumber
 		item.Sum = withdraw.Sum
-		item.ProcessedAt = getTimestamp(withdraw.ProcessedAt)
+		item.ProcessedAt = withdraw.ProcessedAt
 		arr = append(arr, item)
 	}
 
