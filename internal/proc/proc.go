@@ -153,6 +153,8 @@ func (p *Proc) SetOrders(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "bad request")
 	}
 
+	fmt.Println("new order:", login, order)
+
 	if !validateLuhn(orderInt) {
 		return c.String(http.StatusUnprocessableEntity, "incorrect order number")
 	}
@@ -200,6 +202,8 @@ func (p *Proc) Orders(c echo.Context) error {
 	if orders == nil {
 		return c.String(http.StatusNoContent, "user has no orders")
 	}
+
+	fmt.Println("orders:", login, orders)
 
 	var arr []OrdersJSONItem
 	for _, order := range orders {
