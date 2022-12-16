@@ -422,17 +422,17 @@ func (s *Storage) UserFromOrderNumber(orderNumber string) (string, error) {
 		return "", fmt.Errorf("read rows: %w", err)
 	}
 	defer rows.Close()
-	for rows.Next() {
-		if err := rows.Scan(&user); err != nil {
-			return "", fmt.Errorf("read rows: %w", err)
-		}
-		return user, nil
+
+	rows.Next()
+	if err := rows.Scan(&user); err != nil {
+		return "", fmt.Errorf("read rows: %w", err)
 	}
+
 	err = rows.Err()
 	if err != nil {
 		return "", fmt.Errorf("rows error: %w", err)
 	}
-	return "", fmt.Errorf("unexpected error: %w", err)
+	return user, nil
 }
 
 func (s *Storage) SetOrderProcessed(orderNumber string, accrual float64) error {
