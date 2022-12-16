@@ -449,7 +449,7 @@ func (s *Storage) SetOrderProcessed(orderNumber string, accrual float64) error {
 
 	login, err := s.UserFromOrderNumber(orderNumber)
 	if err != nil {
-		return fmt.Errorf("balance update error: %w", err)
+		return fmt.Errorf("balance update user error: %w", err)
 	}
 
 	balance := Balance{}
@@ -468,7 +468,7 @@ func (s *Storage) SetOrderProcessed(orderNumber string, accrual float64) error {
 		return fmt.Errorf("rows error: %w", err)
 	}
 
-	_, err = db.Exec("UPDATE gom_balances SET current = $1 WHERE login = $3", balance.Current+accrual, login)
+	_, err = db.Exec("UPDATE gom_balances SET current = $1 WHERE login = $2", balance.Current+accrual, login)
 	if err != nil {
 		return fmt.Errorf("db error: %w", err)
 	}
