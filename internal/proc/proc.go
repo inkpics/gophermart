@@ -426,7 +426,7 @@ func (p *Proc) Accrual(orderNumber string) (string, float64, string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusTooManyRequests {
-		return "", 0, "", resp.Header.Get("Retry-After"), nil
+		return "", 0, resp.Header.Get("Retry-After"), nil
 	}
 
 	body, err := io.ReadAll(resp.Body)
