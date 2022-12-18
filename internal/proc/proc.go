@@ -383,10 +383,19 @@ func (p *Proc) UpdateAccrual() error {
 	}
 
 	for _, order := range orders {
-		status, accrual, err := p.Accrual(order.Number)
+		status, accrual, timeout, err := p.Accrual(order.Number)
 		if err != nil {
 			return fmt.Errorf("update accrual order error: %w", err)
 		}
+		if timeout != "" {
+			retry, err := strconv.Atoi(timeout)
+			if err != nil {
+				return fmt.Errorf("accrual retry-timeout error: %w", err)
+			}
+			time.Sleep(time.Duration(retry) * time.Second)
+			continue
+		}
+
 		if status == "INVALID" {
 			err = p.Storage.SetOrderInvalid(order.Number)
 			if err != nil {
@@ -409,23 +418,27 @@ type AccrualJSON struct {
 	Accrual     float64 `json:"accrual"`
 }
 
-func (p *Proc) Accrual(orderNumber string) (string, float64, error) {
+func (p *Proc) Accrual(orderNumber string) (string, float64, string, error) {
 	resp, err := http.Get(p.AccrualAddr + "/api/orders/" + orderNumber)
 	if err != nil {
-		return "", 0, fmt.Errorf("accrual error: %w", err)
+		return "", 0, "", fmt.Errorf("accrual error: %w", err)
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return "", 0, "", resp.Header.Get("Retry-After"), nil
+	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", 0, fmt.Errorf("accrual error: %w", err)
+		return "", 0, "", fmt.Errorf("accrual error: %w", err)
 	}
 
 	var a AccrualJSON
 	err = json.Unmarshal(body, &a)
 	if err != nil {
-		return "", 0, fmt.Errorf("accrual error: %w", err)
+		return "", 0, "", fmt.Errorf("accrual error: %w", err)
 	}
 
-	return a.Status, a.Accrual, nil
+	return a.Status, a.Accrual, "", nil
 }
