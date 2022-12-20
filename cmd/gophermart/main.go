@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"log"
 	"os"
 
 	"github.com/inkpics/gophermart/internal/app"
@@ -23,14 +23,14 @@ func main() {
 	}
 
 	if databaseAddr == "" {
-		fmt.Println("no database connection provided!")
+		log.Print("no database connection provided!")
 		return
 	}
 
-	fmt.Println("database connection string is " + databaseAddr)
+	log.Printf("database connection string is %s", databaseAddr)
 
 	err := app.Start(runAddr, databaseAddr, accrualAddr)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
