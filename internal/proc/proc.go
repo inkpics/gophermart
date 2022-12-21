@@ -18,28 +18,26 @@ import (
 )
 
 type Proc struct {
-	RunAddr      string
-	DatabaseAddr string
-	AccrualAddr  string
-	Storage      *storage.Storage
-	enc          string
+	runAddr     string
+	accrualAddr string
+	storage     *storage.Storage
+	enc         string
 }
 
 func New(runAddr, databaseAddr, accrualAddr string) (*Proc, error) {
 	s, err := storage.New(databaseAddr)
 	if err != nil {
-		err = fmt.Errorf("new storage: %w", err)
+		return nil, fmt.Errorf("new storage: %w", err)
 	}
 	return &Proc{
-		RunAddr:      runAddr,
-		DatabaseAddr: databaseAddr,
-		AccrualAddr:  accrualAddr,
-		Storage:      s,
-		enc:          "e0e10cbb-7713-43b4-9dc7-e198779e130c",
-	}, err
+		runAddr:     runAddr,
+		accrualAddr: accrualAddr,
+		storage:     s,
+		enc:         "e0e10cbb-7713-43b4-9dc7-e198779e130c",
+	}, nil
 }
 
-type UserJSON struct {
+type userJSON struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`
 }
@@ -60,14 +58,14 @@ func (p *Proc) Register(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "internal server error")
 	}
 
-	var u UserJSON
+	var u userJSON
 	err = json.Unmarshal(body, &u)
 	if err != nil {
 		return c.String(http.StatusBadRequest, "bad request")
 	}
 
-	err = p.Storage.UserRegister(u.Login, encodePass(u.Password))
-	if errors.Is(err, p.Storage.ErrDuplicateKey) {
+	err = p.storage.UserRegister(u.Login, encodePass(u.Password))
+	if errors.Is(err, p.storage.ErrDuplicateKey) {
 		return c.String(http.StatusConflict, "login is already in use")
 	} else if err != nil {
 		return c.String(http.StatusBadRequest, "bad request")
@@ -89,13 +87,13 @@ func (p *Proc) Login(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "internal server error")
 	}
 
-	var u UserJSON
+	var u userJSON
 	err = json.Unmarshal(body, &u)
 	if err != nil {
 		return c.String(http.StatusBadRequest, "bad request")
 	}
 
-	err = p.Storage.UserLogin(u.Login, encodePass(u.Password))
+	err = p.storage.UserLogin(u.Login, encodePass(u.Password))
 	if err != nil {
 		return c.String(http.StatusUnauthorized, "wrong credentials")
 	}
@@ -157,7 +155,7 @@ func (p *Proc) SetOrders(c echo.Context) error {
 		return c.String(http.StatusUnprocessableEntity, "incorrect order number")
 	}
 
-	registered, err := p.Storage.OrderRegistered(login, order)
+	registered, err := p.storage.OrderRegistered(login, order)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "internal server error")
 	}
@@ -167,14 +165,14 @@ func (p *Proc) SetOrders(c echo.Context) error {
 		return c.String(http.StatusOK, "order already registered")
 	}
 
-	err = p.Storage.OrderRegister(login, order)
+	err = p.storage.OrderRegister(login, order)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "internal server error")
 	}
 	return c.String(http.StatusAccepted, "order registered successfully")
 }
 
-type OrdersJSONItem struct {
+type ordersJSONItem struct {
 	Number     string  `json:"number"`
 	Status     string  `json:"status"`
 	Accrual    float64 `json:"accrual"`
@@ -192,7 +190,7 @@ func (p *Proc) Orders(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "user authentication failed")
 	}
 
-	orders, err := p.Storage.Orders(login)
+	orders, err := p.storage.Orders(login)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "internal server error")
 	}
@@ -200,9 +198,9 @@ func (p *Proc) Orders(c echo.Context) error {
 		return c.String(http.StatusNoContent, "user has no orders")
 	}
 
-	var arr []OrdersJSONItem
+	var arr []ordersJSONItem
 	for _, order := range orders {
-		item := OrdersJSONItem{}
+		item := ordersJSONItem{}
 		item.Number = order.Number
 		item.Status = order.Status
 		item.Accrual = order.Accrual
@@ -213,7 +211,7 @@ func (p *Proc) Orders(c echo.Context) error {
 	return c.JSON(http.StatusOK, arr)
 }
 
-type BalanceJSON struct {
+type balanceJSON struct {
 	Current   float64 `json:"current"`
 	Withdrawn float64 `json:"withdrawn"`
 }
@@ -228,19 +226,19 @@ func (p *Proc) Balance(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "user authentication failed")
 	}
 
-	balance, err := p.Storage.UserBalance(login)
+	balance, err := p.storage.UserBalance(login)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "internal server error")
 	}
 
-	var result BalanceJSON
+	var result balanceJSON
 	result.Current = balance.Current
 	result.Withdrawn = balance.Withdrawn
 
 	return c.JSON(http.StatusOK, result)
 }
 
-type WithdrawJSON struct {
+type withdrawJSON struct {
 	Order string  `json:"order"`
 	Sum   float64 `json:"sum"`
 }
@@ -262,7 +260,7 @@ func (p *Proc) Withdraw(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "internal server error")
 	}
 
-	var w WithdrawJSON
+	var w withdrawJSON
 	err = json.Unmarshal(body, &w)
 	if err != nil {
 		return c.String(http.StatusBadRequest, "bad request")
@@ -277,7 +275,7 @@ func (p *Proc) Withdraw(c echo.Context) error {
 		return c.String(http.StatusUnprocessableEntity, "incorrect order number")
 	}
 
-	withdraw, err := p.Storage.Withdraw(login, w.Order, w.Sum)
+	withdraw, err := p.storage.Withdraw(login, w.Order, w.Sum)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "internal server error")
 	}
@@ -288,7 +286,7 @@ func (p *Proc) Withdraw(c echo.Context) error {
 	return c.String(http.StatusOK, "successfull withdraw")
 }
 
-type WithdrawalsJSONItem struct {
+type withdrawalsJSONItem struct {
 	OrderNumber string  `json:"order"`
 	Sum         float64 `json:"sum"`
 	ProcessedAt string  `json:"processed_at"`
@@ -305,7 +303,7 @@ func (p *Proc) Withdrawals(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "user authentication failed")
 	}
 
-	withdrawals, err := p.Storage.Withdrawals(login)
+	withdrawals, err := p.storage.Withdrawals(login)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "internal server error")
 	}
@@ -313,9 +311,9 @@ func (p *Proc) Withdrawals(c echo.Context) error {
 		return c.String(http.StatusNoContent, "user has no withdrawals")
 	}
 
-	var arr []WithdrawalsJSONItem
+	var arr []withdrawalsJSONItem
 	for _, withdraw := range withdrawals {
-		item := WithdrawalsJSONItem{}
+		item := withdrawalsJSONItem{}
 		item.OrderNumber = withdraw.OrderNumber
 		item.Sum = withdraw.Sum
 		item.ProcessedAt = withdraw.ProcessedAt
@@ -377,23 +375,32 @@ func (p *Proc) AccrualLoop() {
 }
 
 func (p *Proc) UpdateAccrual() error {
-	orders, err := p.Storage.OrdersProcessing()
+	orders, err := p.storage.OrdersProcessing()
 	if err != nil {
 		return fmt.Errorf("update accrual error: %w", err)
 	}
 
 	for _, order := range orders {
-		status, accrual, err := p.Accrual(order.Number)
+		status, accrual, timeout, err := p.Accrual(order.Number)
 		if err != nil {
 			return fmt.Errorf("update accrual order error: %w", err)
 		}
+		if timeout != "" {
+			retry, err := strconv.Atoi(timeout)
+			if err != nil {
+				return fmt.Errorf("accrual retry-timeout error: %w", err)
+			}
+			time.Sleep(time.Duration(retry) * time.Second)
+			continue
+		}
+
 		if status == "INVALID" {
-			err = p.Storage.SetOrderInvalid(order.Number)
+			err = p.storage.SetOrderInvalid(order.Number)
 			if err != nil {
 				return fmt.Errorf("set order invalid error: %w", err)
 			}
 		} else if status == "PROCESSED" {
-			err = p.Storage.SetOrderProcessed(order.Number, accrual)
+			err = p.storage.SetOrderProcessed(order.Number, accrual)
 			if err != nil {
 				return fmt.Errorf("set order processed error: %w", err)
 			}
@@ -403,29 +410,33 @@ func (p *Proc) UpdateAccrual() error {
 	return nil
 }
 
-type AccrualJSON struct {
+type accrualJSON struct {
 	OrderNumber string  `json:"order"`
 	Status      string  `json:"status"`
 	Accrual     float64 `json:"accrual"`
 }
 
-func (p *Proc) Accrual(orderNumber string) (string, float64, error) {
-	resp, err := http.Get(p.AccrualAddr + "/api/orders/" + orderNumber)
+func (p *Proc) Accrual(orderNumber string) (string, float64, string, error) {
+	resp, err := http.Get(p.accrualAddr + "/api/orders/" + orderNumber)
 	if err != nil {
-		return "", 0, fmt.Errorf("accrual error: %w", err)
+		return "", 0, "", fmt.Errorf("accrual error: %w", err)
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return "", 0, resp.Header.Get("Retry-After"), nil
+	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", 0, fmt.Errorf("accrual error: %w", err)
+		return "", 0, "", fmt.Errorf("accrual error: %w", err)
 	}
 
-	var a AccrualJSON
+	var a accrualJSON
 	err = json.Unmarshal(body, &a)
 	if err != nil {
-		return "", 0, fmt.Errorf("accrual error: %w", err)
+		return "", 0, "", fmt.Errorf("accrual error: %w", err)
 	}
 
-	return a.Status, a.Accrual, nil
+	return a.Status, a.Accrual, "", nil
 }
