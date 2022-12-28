@@ -37,6 +37,18 @@ func New(runAddr, databaseAddr, accrualAddr string) (*Proc, error) {
 	}, nil
 }
 
+func (p *Proc) MiddlewareAuth(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		login, err := getLogin(c, p.enc)
+		if err != nil {
+			return c.String(http.StatusUnauthorized, "user authentication failed")
+		}
+		c.Set("login", login)
+
+		return next(c)
+	}
+}
+
 type userJSON struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`
@@ -113,7 +125,7 @@ func checksumLuhn(number int) int {
 	for i := 0; number > 0; i++ {
 		cur := number % 10
 
-		if i%2 == 0 { // even
+		if i%2 == 0 {
 			cur = cur * 2
 			if cur > 9 {
 				cur = cur%10 + cur/10
@@ -135,10 +147,7 @@ func (p *Proc) SetOrders(c echo.Context) error {
 	// StatusUnprocessableEntity 422 — неверный формат номера заказа
 	// StatusInternalServerError 500 — внутренняя ошибка сервера
 
-	login, err := getLogin(c, p.enc)
-	if err != nil {
-		return c.String(http.StatusUnauthorized, "user authentication failed")
-	}
+	login := c.Get("login").(string)
 
 	body, err := io.ReadAll(c.Request().Body)
 	if err != nil {
@@ -185,10 +194,7 @@ func (p *Proc) Orders(c echo.Context) error {
 	// StatusUnauthorized 401 — пользователь не авторизован
 	// StatusInternalServerError 500 — внутренняя ошибка сервера
 
-	login, err := getLogin(c, p.enc)
-	if err != nil {
-		return c.String(http.StatusUnauthorized, "user authentication failed")
-	}
+	login := c.Get("login").(string)
 
 	orders, err := p.storage.Orders(login)
 	if err != nil {
@@ -221,10 +227,7 @@ func (p *Proc) Balance(c echo.Context) error {
 	// StatusUnauthorized 401 — пользователь не авторизован
 	// StatusInternalServerError 500 — внутренняя ошибка сервера
 
-	login, err := getLogin(c, p.enc)
-	if err != nil {
-		return c.String(http.StatusUnauthorized, "user authentication failed")
-	}
+	login := c.Get("login").(string)
 
 	balance, err := p.storage.UserBalance(login)
 	if err != nil {
@@ -250,10 +253,7 @@ func (p *Proc) Withdraw(c echo.Context) error {
 	// StatusUnprocessableEntity 422 — неверный номер заказа
 	// StatusInternalServerError 500 — внутренняя ошибка сервера
 
-	login, err := getLogin(c, p.enc)
-	if err != nil {
-		return c.String(http.StatusUnauthorized, "user authentication failed")
-	}
+	login := c.Get("login").(string)
 
 	body, err := io.ReadAll(c.Request().Body)
 	if err != nil {
@@ -298,10 +298,7 @@ func (p *Proc) Withdrawals(c echo.Context) error {
 	// 401 — пользователь не авторизован
 	// 500 — внутренняя ошибка сервера
 
-	login, err := getLogin(c, p.enc)
-	if err != nil {
-		return c.String(http.StatusUnauthorized, "user authentication failed")
-	}
+	login := c.Get("login").(string)
 
 	withdrawals, err := p.storage.Withdrawals(login)
 	if err != nil {
